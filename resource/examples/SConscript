@@ -45,7 +45,6 @@ examples_env.AppendUnique(CPPPATH=[
 ])
 
 examples_env.PrependUnique(LIBS=['coap'])
-
 examples_env.PrependUnique(LIBS=['wiringPi'])
 
 if target_os not in ['msys_nt', 'windows']:
@@ -155,6 +154,9 @@ examples_env.SConscript('etriocf/SConscript', exports='examples_env')
 examples_env.SConscript('test/SConscript', exports='examples_env')
 examples_env.SConscript('etrictt/SConscript', exports='examples_env')
 examples_env.SConscript('etrictt_jin/SConscript', exports='examples_env')
+examples_env.SConscript('ipc_sender/SConscript', exports='examples_env')
+examples_env.SConscript('agent/SConscript', exports='examples_env')
+examples_env.SConscript('ocf_server/SConscript', exports='examples_env')
 
 examples_env.Alias("examples", examples)
 examples_env.AppendTarget('examples')

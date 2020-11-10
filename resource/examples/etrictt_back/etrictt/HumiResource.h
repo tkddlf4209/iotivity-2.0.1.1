@@ -91,6 +91,7 @@ private:
      * @return OCRepresentaiton with the dimming resource parameters assigned.
      */
     OC::OCRepresentation get(OC::QueryParamsMap queries);
+    OC::OCRepresentation get(const OC::OCRepresentation& rep,OC::QueryParamsMap queries);
 
     /*
      * Parse the payload for the update function (e.g. POST)
@@ -106,14 +107,14 @@ private:
     std::string m_resourceUri;
     std::string m_RESOURCE_TYPE[1]; // rt value (as an array)
     std::string m_RESOURCE_INTERFACE[2]; // interface if (as an array)
-    std::string m_IF_UPDATE[3]; // updatable interfaces
+    std::string m_IF_UPDATE[2]; // updatable interfaces
     OC::ObservationIds m_interestedObservers;
 
     // member variables for path: /dimming
     int m_var_value_humi; // the value for the attribute
-    int m_var_value_desired_humidity; // the value for the attribute
     std::string m_var_name_humi; // the name for the attribute
-    std::string m_var_name_desired_humidity; // the name for the attribute
+    int m_var_value_ds_humi; // the value for the attribute
+    std::string m_var_name_ds_humi; // the name for the attribute
 
     std::string m_var_value_n; // the value for the attribute
     std::string m_var_name_n; // the name for the attribute
@@ -154,4 +155,4 @@ protected:
     virtual OCEntityHandlerResult entityHandler(std::shared_ptr<OC::OCResourceRequest> request);
 };
 
-#endif /* EXAMPLE_OCF_LIGHT_DIMMINGRESOURCE_H_ */
+#endif /* EXAMPLE_OCF_LIGHT_DIM/MINGRESOURCE_H_ */

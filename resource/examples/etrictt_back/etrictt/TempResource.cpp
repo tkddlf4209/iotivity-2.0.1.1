@@ -44,8 +44,8 @@ TempResource::TempResource(std::string resourceUri):
     m_RESOURCE_TYPE[0] = "oic.r.temperature";
     m_RESOURCE_INTERFACE[0] = "oic.if.baseline";
     m_RESOURCE_INTERFACE[1] = "oic.if.a";
-    m_IF_UPDATE[0] = "oic.if.a";
-    m_IF_UPDATE[1] = "oic.if.baseline";
+    m_IF_UPDATE[0] = "oic.if.baseline";
+    m_IF_UPDATE[1] = "oic.if.a";
     m_var_name_temp = "temperature";
     m_var_name_n = "n";
     m_var_name_if = "if";
@@ -153,6 +153,7 @@ OCEntityHandlerResult TempResource::post(OC::QueryParamsMap queries, const OC::O
     OCEntityHandlerResult ehResult = OC_EH_OK;
     OC_UNUSED(queries);
 
+    /*
     try {
         if (rep.hasAttribute(m_var_name_temp))
         {
@@ -167,12 +168,13 @@ OCEntityHandlerResult TempResource::post(OC::QueryParamsMap queries, const OC::O
     catch (std::exception& e)
     {
         std::cout << e.what() << std::endl;
-    }
+    }*/
 
     if (ehResult == OC_EH_OK)
     {
         // no error: assign the variables
-        try {
+        
+	try {
             // value exist in payload
             if (rep.getValue(m_var_name_temp, m_var_value_temp ))
             {
@@ -188,7 +190,7 @@ OCEntityHandlerResult TempResource::post(OC::QueryParamsMap queries, const OC::O
             std::cout << e.what() << std::endl;
         }
 
-
+	/*
         try {
             if (rep.hasAttribute(m_var_name_if))
             {
@@ -248,7 +250,9 @@ OCEntityHandlerResult TempResource::post(OC::QueryParamsMap queries, const OC::O
         {
             std::cout << e.what() << std::endl;
         }
+	*/
     }
+
     return ehResult;
 }
 
@@ -271,7 +275,11 @@ OCEntityHandlerResult TempResource::entityHandler(std::shared_ptr<OC::OCResource
         {
             std::cout << "Query key: " << it.first << " value : " << it.second
                     << std::endl;
+
+
         }
+
+
         // get the value, so that we can AND it to check which flags are set
         int requestFlag = request->getRequestHandlerFlag();
 
@@ -292,12 +300,13 @@ OCEntityHandlerResult TempResource::entityHandler(std::shared_ptr<OC::OCResource
                     ehResult = OC_EH_OK;
                 }
             }
-
+	
             else if (request->getRequestType() == "POST")
             {
                 std::cout <<"TempResource Post Request"<<std::endl;
                 bool  handle_post = true;
 
+		/*
                 if (queries.size() > 0)
                 {
                     for (const auto &eachQuery : queries)
@@ -318,17 +327,38 @@ OCEntityHandlerResult TempResource::entityHandler(std::shared_ptr<OC::OCResource
                         }
                     }
                 }
+		*/
+
+
                 if (handle_post)
                 {
-                    ehResult = post(queries, request->getResourceRepresentation());
-                    if (ehResult == OC_EH_OK)
+                    /*if( 0 == queries["if"].compare("oic.if.s")){
+			//ehResult = OC_EH_OK;
+                        pResponse->setResponseResult(OCEntityHandlerResult::OC_EH_FORBIDDEN);
+		    }else{
+			ehResult = post(queries, request->getResourceRepresentation());
+		    }*/
+
+		    try{
+			ehResult = post(queries, request->getResourceRepresentation());
+		    }
+		    catch(std::exception& e)
+		    {
+			std::cout << e.what() << std::endl;
+		    }
+
+
+                    pResponse->setResourceRepresentation(get(queries), "");
+                    
+		    if (ehResult == OC_EH_OK)
                     {
-                        pResponse->setResourceRepresentation(get(queries), "");
+                        //pResponse->setResourceRepresentation(get(queries), "");
                     }
                     else
                     {
                         pResponse->setResponseResult(OCEntityHandlerResult::OC_EH_ERROR);
                     }
+		    
                     if (OC_STACK_OK == OCPlatform::sendResponse(pResponse))
                     {
                         if (OC_STACK_OK != sendNotification() )
@@ -338,6 +368,8 @@ OCEntityHandlerResult TempResource::entityHandler(std::shared_ptr<OC::OCResource
                     }
                 }
             }
+	    
+	    
             else
             {
                 std::cout << "TempResource unsupported request type (delete,put,..)"

@@ -1,0 +1,293 @@
+/*
+ *-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ *
+ * Copyright 2018 Intel Corporation All Rights Reserved.
+ *
+ *-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ *-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ */
+
+#include <signal.h>
+#include <string>
+#include <iostream>
+
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif
+
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+
+#include <unistd.h>
+#include <pthread.h>
+
+#include "Platform.h"
+#include "HumiResource.h"
+#include "TempResource.h"
+#include "BinarySwitchResource.h"
+#include "json/json.h"
+#include "main.h"
+
+//#include "BinarySwitchResource.h"
+
+// main application
+//
+// starts the server
+//
+//
+
+
+// IPC PROP
+#define PID_AGENT 1
+#define PID_ETRI 2
+#define PID_OCF 3
+
+#define MSG_SIZE 1024
+#define ETRI_QUEUE_KEY 1
+#define OCF_QUEUE_KEY 2
+
+#define MY_PID PID_OCF
+
+typedef struct{
+    long mtype;
+    char data[MSG_SIZE];
+} msg_data;
+
+
+// IPC REQ_TYPE
+#define GET_REQ  "GET_REQ"
+#define GET_RSP "GET_RSP"
+#define POST_REQ "POST_REQ"
+#define POST_RSP "POST_RSP"
+#define CREATE_REQ  "CREATE_REQ"
+#define CREATE_RSP "CREATE_RSP"
+
+#define OCF_DC_RT_NAME "oic.r.dc"
+
+// IPC JSON KEY
+const  std::string KEY_REQ_TYPE= "req_type";
+const  std::string KEY_RESOURCES= "resources";
+const  std::string KEY_RESULT= "result";
+const  std::string KEY_ID ="id";
+const  std::string KEY_URI ="uri";
+
+TempResource t;
+HumiResource h;
+BinarySwitchResource b;
+void sendMsg(Json::Value value, long dst_pid)
+
+void callback_entityHandler(std::shared_ptr<OC::OCResourceRequest> request){
+
+    if (request->getRequestType() == "POST"){
+	if(request -> getResourceUri().compare("/binaryswitch") ==0 ){
+
+	    
+	}
+    }
+
+}
+
+void registerResources(){
+
+    OCStackResult result = OC_STACK_ERROR;
+
+    result =  t.registerResource();
+    if(result != OC_STACK_OK){
+        std::cout << "Failed to register TEMP resources." << std::endl;
+    }
+
+    result = h.registerResource();
+    
+    if(result != OC_STACK_OK){
+        std::cout << "Failed to register HUMI resources." << std::endl;
+    }
+ 
+    result = b.registerResource();
+    
+    if(result != OC_STACK_OK){
+        std::cout << "Failed to register BinarySwitch resources." << std::endl;
+    
+    }
+
+}
+
+int ocf_msgid; // queue_id
+Json::FastWriter fw;
+void sendMsg(Json::Value value, long dst_pid){
+    msg_data send_msg;
+    send_msg.mtype = dst_pid;
+    std::string out = fw.write(value);
+    strcpy(send_msg.data,out.c_str());
+    int msg_size = sizeof(send_msg) - sizeof(send_msg.mtype);
+    int rtn = msgsnd(ocf_msgid,&send_msg,msg_size,0);
+}
+
+
+void * recv_queue(void * arg){
+    msg_data msg;
+    int msg_size = sizeof(msg) - sizeof(msg.mtype);
+
+    // ocf client message queue init
+    ocf_msgid = msgget((key_t)OCF_QUEUE_KEY,IPC_CREAT|0666);
+    if(ocf_msgid == -1){
+	std::cout << "ocf_msgid msgget() Error" << std::endl;
+    }else{
+	//ocf queue clear
+	while(msgrcv(ocf_msgid,&msg,msg_size,0,IPC_NOWAIT) > 0){
+	
+	}
+
+    }
+
+    std::cout << "ocf_msgid = "<< ocf_msgid << std::endl;
+
+    Json::Value value;
+    Json::Reader reader;
+   
+
+    for(;;){
+
+	if (msgrcv(ocf_msgid,&msg,msg_size,MY_PID,IPC_NOWAIT) > 0){
+	    //std::cout << "@@@ PID :"<< msg.mtype << std::endl;
+	    // char[] to String
+	    std::string data(msg.data);
+
+	    // parse String to JSON
+	    bool success = reader.parse(data,value);
+	    if(success){
+
+		// Check JSON has Key 'req_type'
+		if(value.isMember(KEY_REQ_TYPE)){
+		    std::string req_type = value["req_type"].asString();
+		    
+		    // Check REQ_TYPE 
+		    if(req_type.compare(CREATE_REQ)==0){
+		    
+		    }else if(req_type.compare(GET_RSP) == 0){ 
+			if(value.isMember("/temperature")){
+			    Json::Value data = value["/temperature"];
+			    
+			   // std::cout << "TEMPERATURE DATA \n"; 
+			   // std::cout << data["temperature"] << std::endl;
+			    t.setTemp(data["temperature"].asDouble());
+
+			}
+
+			if(value.isMember("/humidity")){
+			    Json::Value data = value["/humidity"];
+			    
+			   // std::cout << "HUMIDITY DATA \n"; 
+			    h.setHumi(data["humidity"].asInt());
+
+			}
+
+
+			if(value.isMember("/binaryswitch")){
+			    Json::Value data = value["/binaryswitch"];
+			    
+			   // std::cout << "Binary Switch DATA \n"; 
+			   // std::cout << data["humidity"] << std::endl;
+			   // std::cout << data["desiredHumidity"] << std::endl;
+			    b.setValue(data["value"].asBool());
+
+			}
+
+
+		    }else if(req_type.compare(POST_RSP) == 0){
+		    
+		    }
+		
+		}
+	    }else{
+		std::cout << "json parse Error"<< data << std::endl;
+	    }
+
+	    
+	    std::cout << "data : "<< data<< std::endl;
+	    
+
+	}
+
+	
+	//sleep(1);
+    }
+}
+
+
+void * collect(void * p){
+    Json::Value value;
+    value["req_type"] = GET_REQ;
+    while(1){
+	sleep(3);
+	    
+	    value["uri"] = "/temperature";
+	    sendMsg(value,PID_AGENT);
+	    
+	    value["uri"] = "/humidity";
+	    sendMsg(value,PID_AGENT);
+ 
+	    value["uri"] = "/binaryswitch";
+	    sendMsg(value,PID_AGENT);
+
+    }
+}
+void startRecv(){
+    pthread_t threadId;
+    pthread_create(&threadId,NULL,recv_queue,(void *)0);
+}
+
+void startCollect(){
+    pthread_t threadId;
+    pthread_create(&threadId,NULL,collect,(void *)0);
+}
+
+int main(void)
+{
+    Platform platform;
+    if (OC_STACK_OK != platform.start())
+    {
+        std::cerr << "Failed to start the IoTivity platform." << std::endl;
+        return 1;
+    }
+    // initialize "oic/p"
+    std::cout << "oic/p" << std::endl;
+    if (OC_STACK_OK != platform.registerPlatformInfo())
+    {
+        std::cerr << "Failed Platform Registration (oic/p)." << std::endl;
+    }
+    // initialize "oic/d"
+    std::cout << "oic/d" << std::endl;
+    if (OC_STACK_OK != platform.setDeviceInfo())
+    {
+        std::cerr << "Failed Device Registration (oic/d)." << std::endl;
+    }
+
+    std::cout << "device type: " <<  platform.deviceType << std::endl;
+    std::cout << "platformID: " <<  platform.getPlatformInfo()->platformID << std::endl;
+    std::cout << "platform independent: " << platform.protocolIndependentID << std::endl;
+
+    registerResources();
+
+    startRecv();
+    startCollect();
+
+    while(1){
+    }
+
+    return 0;
+}

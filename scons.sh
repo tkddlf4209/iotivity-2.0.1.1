@@ -1,1 +1,1 @@
-scons TARGET_ARCH=arm SECURED=1
+scons TARGET_ARCH=arm SECURED=0
